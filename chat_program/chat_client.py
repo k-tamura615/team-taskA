@@ -9,6 +9,7 @@ class ChatClientGUI:
     def __init__(self, master):
         self.root = master
         self.root.withdraw()
+        self.message_bubbles = []
 
         self.server_ip = simpledialog.askstring("接続先", "サーバーのIPアドレスを入力してください:", parent=self.root)
         if not self.server_ip:
@@ -38,8 +39,10 @@ class ChatClientGUI:
     def setup_chat_window(self):
         self.root.deiconify()
         self.root.title(f"LINE風チャット - {self.name}")
-        self.root.geometry("500x600")
+        self.root.geometry("600x600")
         self.root.configure(bg="#e5ddd5")
+        self.root.resizable(True, True)
+        self.root.bind("<Configure>", lambda e: self.update_wraplengths())
 
         top_frame = tk.Frame(self.root, bg="#e5ddd5")
         top_frame.place(relx=0, rely=0, relwidth=1, relheight=0.75)
@@ -62,6 +65,10 @@ class ChatClientGUI:
         self.entry.bind("<Return>", self.send_message)
         self.entry.bind("<Shift-Return>", self.allow_newline)
 
+    def update_wraplengths(self):
+        for bubble in self.message_bubbles:
+            pass  # 必要ならここでwraplengthを調整できます
+
     def send_message(self, event=None):
         msg = self.entry.get("1.0", tk.END).strip()
         if msg:
@@ -80,16 +87,38 @@ class ChatClientGUI:
 
     def add_message(self, msg, sender="other"):
         bubble_color = "#dcf8c6" if sender == "you" else "#ffffff"
-        anchor = "e" if sender == "you" else "w"
-        if msg.startswith("📢"):
-            bubble_color = "#ffffcc"
-            anchor = "c"
+        right_margin = 5  # ここを5pxに変更しました
+        max_bubble_width = int(self.root.winfo_width() * 0.75)
+
+        char_width_px = 7
+        text_length = len(msg)
+        desired_width = min(max_bubble_width, char_width_px * text_length + 20)
+        wrap_length = desired_width - 20
 
         msg_frame = tk.Frame(self.frame, bg="#e5ddd5")
-        msg_label = tk.Label(msg_frame, text=msg, bg=bubble_color, font=("Meiryo", 11),
-                             padx=10, pady=5, wraplength=350, justify="left")
-        msg_label.pack(anchor=anchor, padx=10, pady=2)
-        msg_frame.pack(fill="x", anchor=anchor)
+
+        bubble = tk.Label(
+            msg_frame,
+            text=msg,
+            bg=bubble_color,
+            font=("Meiryo", 11),
+            padx=10,
+            pady=6,
+            justify="left",
+            anchor="w",
+            wraplength=wrap_length
+        )
+
+        self.message_bubbles.append(bubble)
+
+        bubble.pack()
+
+        if sender == "you":
+            msg_frame.pack(anchor="e", padx=(0, right_margin), pady=4)
+        elif sender == "other":
+            msg_frame.pack(anchor="w", padx=(right_margin, 0), pady=4)
+        else:
+            msg_frame.pack(anchor="center", pady=4)
 
         self.canvas.update_idletasks()
         self.canvas.yview_moveto(1.0)
